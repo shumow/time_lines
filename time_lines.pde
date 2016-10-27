@@ -140,13 +140,17 @@ class TimeLine {
   public boolean is_off_screen() {
     return this.off_screen;
   }
-    
-  public color get_color() {
-    if (null != this.entangled_chrono) {
-      return this.entangled_chrono.source().get_color();
+  
+  private color get_color(TimeLine src) {
+    if ((null != this.entangled_chrono) && (src != this.entangled_chrono.source())){
+      return this.entangled_chrono.source().get_color(src);
     } else {
       return this.c;
-    }
+    }    
+  }
+  
+  public color get_color() {
+    return this.get_color(this);
   }
   
   public Vector direction() {
@@ -157,12 +161,16 @@ class TimeLine {
     return this.pos;
   }
   
-  public float velocity() {
-    if (null != this.entangled_chrono) {
-      return this.entangled_chrono.source().velocity();
+  private float velocity(TimeLine src) {
+    if ((null != this.entangled_chrono) && (src != this.entangled_chrono.source())) {
+      return this.entangled_chrono.source().velocity(src);
     } else {
-      return this.v;      
-    }
+      return this.v;
+    }    
+  }
+  
+  public float velocity() {
+    return this.velocity(this);
   }
   
   public Chronoton spawn_chronoton() {
@@ -173,13 +181,19 @@ class TimeLine {
   public boolean has_spawned_chronoton() {
     return (this.chrono != null);
   }
-  
-  public void entangle(Chronoton c) {
-    if (null != this.entangled_chrono) {
-      this.entangled_chrono.source().entangle(c);
+
+  private void entangle(Chronoton c, TimeLine src) {
+    if ((null != this.entangled_chrono) && (this.entangled_chrono.source() != src)) {
+      this.entangled_chrono.source().entangle(c, src);
     }
     this.entangled_chrono = c;
   }
+  
+  public void entangle(Chronoton c) {
+    this.entangle(c, this);
+  }
+  
+
 }
 
 TimeLine random_time_line(int w, int h) {
@@ -203,6 +217,7 @@ TimeLine random_time_line(int w, int h) {
     
     color c = color(random(255), random(255), random(255));
     
+    /*
     println("d = "  + d);
     println("direction = " + direction.x + " " + direction.y);
     println("position = " + position.x + " " + position.y);
@@ -210,7 +225,7 @@ TimeLine random_time_line(int w, int h) {
     println("l = " + l);
     println("v = " + v);
     println("c = " + hex(c));
-    
+    */
     return new TimeLine(direction, v, position, c, l, dimension);    
 }
 
@@ -252,7 +267,7 @@ void draw() {
       if (!tl.has_spawned_chronoton())
       {
         if (random(1) < dt*chronoton_spawn_probability) {
-          println("adding new chronoton.");
+          //println("adding new chronoton.");
           Chronoton c = tl.spawn_chronoton();
           chronos.add(c);
         }
@@ -263,14 +278,14 @@ void draw() {
   if (random(1) < (dt*time_line_spawn_probability)) {
     TimeLine tl = random_time_line(width, height);
     tls.add(tl);
-    println("count since last spawn: " + cnt);
+    //println("count since last spawn: " + cnt);
     cnt = 0;
   }
   
   for (int i = 0; i < chronos.size(); i++)
   {
     Chronoton c = chronos.get(i);
-    boolean c_removed = false;
+    boolean remove = false;
     
     c.update(dt);
     c.draw();
@@ -278,15 +293,18 @@ void draw() {
     for (TimeLine tl : tls) {
       if (tl != c.source()) {
         if (vector_distance(tl.position(), c.position()) <= max_chronoton_radius) {
-          println("entangle!");
+          //println("entangle!");
           tl.entangle(c);
-          chronos.remove(i);
-          c_removed = true;
+          remove = true;
         }
       }
     }
+    
+    if (c.is_off_screen()) {
+      remove = true;
+    }
 
-    if ((!c_removed) && (c.is_off_screen())) {
+    if (remove) {
       chronos.remove(i);
     }    
   }
